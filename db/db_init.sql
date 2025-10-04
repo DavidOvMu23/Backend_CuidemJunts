@@ -1,5 +1,5 @@
 /* ===========================================================
-    CuidemJunts - MariaDB
+    CuidemJunts - MariaDB (versión sin variables)
    =========================================================== */
 
 SET NAMES utf8mb4;
@@ -21,10 +21,9 @@ DROP TABLE IF EXISTS `rol`;
 DROP TABLE IF EXISTS `usuario`;
 
 /* ===========================================================
-    1) CREATE TABLES (sin claves foráneas)
+    1) CREATE TABLES
    =========================================================== */
 
-/* usuario (base para login: teleoperador, supervisor) */
 CREATE TABLE `usuario` (
   `usuario_id` CHAR(36) NOT NULL,
   `nombre` VARCHAR(100) NOT NULL,
@@ -37,7 +36,6 @@ CREATE TABLE `usuario` (
   PRIMARY KEY (`usuario_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* rol (para definir tipo de usuario: supervisor o teleoperador) */
 CREATE TABLE `rol` (
   `rol_id` INT NOT NULL AUTO_INCREMENT,
   `nombre` ENUM('supervisor','teleoperador') NOT NULL,
@@ -45,7 +43,6 @@ CREATE TABLE `rol` (
   UNIQUE KEY `uq_rol_nombre` (`nombre`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* rol_usuario */
 CREATE TABLE `rol_usuario` (
   `usuario_id` CHAR(36) NOT NULL,
   `rol_id` INT NOT NULL,
@@ -53,7 +50,6 @@ CREATE TABLE `rol_usuario` (
   KEY `idx_rol_usuario_rol` (`rol_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* trabajador (extiende usuario, contiene datos comunes) */
 CREATE TABLE `trabajador` (
   `trabajador_id` CHAR(36) NOT NULL,
   `dni` VARCHAR(20) NOT NULL,
@@ -61,13 +57,11 @@ CREATE TABLE `trabajador` (
   UNIQUE KEY `uq_trabajador_dni` (`dni`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* supervisor */
 CREATE TABLE `supervisor` (
   `supervisor_id` CHAR(36) NOT NULL,
   PRIMARY KEY (`supervisor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* teleoperador */
 CREATE TABLE `teleoperador` (
   `teleoperador_id` CHAR(36) NOT NULL,
   `supervisor_id` CHAR(36) NOT NULL,
@@ -75,7 +69,6 @@ CREATE TABLE `teleoperador` (
   KEY `idx_teleoperador_supervisor` (`supervisor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* persona_mayor */
 CREATE TABLE `persona_mayor` (
   `persona_id` CHAR(36) NOT NULL,
   `nombre` VARCHAR(100) NOT NULL,
@@ -94,7 +87,6 @@ CREATE TABLE `persona_mayor` (
   KEY `idx_persona_teleoperador` (`teleoperador_asignado`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* contacto_emergencia */
 CREATE TABLE `contacto_emergencia` (
   `contacto_id` BIGINT NOT NULL AUTO_INCREMENT,
   `persona_id` CHAR(36) NOT NULL,
@@ -105,7 +97,6 @@ CREATE TABLE `contacto_emergencia` (
   KEY `idx_contacto_persona` (`persona_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* cita (las llamadas programadas) */
 CREATE TABLE `cita` (
   `cita_id` BIGINT NOT NULL AUTO_INCREMENT,
   `persona_id` CHAR(36) NOT NULL,
@@ -118,7 +109,6 @@ CREATE TABLE `cita` (
   KEY `idx_cita_teleoperador` (`teleoperador_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* comunicacion (resultado de la llamada) */
 CREATE TABLE `comunicacion` (
   `comunicacion_id` BIGINT NOT NULL AUTO_INCREMENT,
   `cita_id` BIGINT NOT NULL,
@@ -132,7 +122,6 @@ CREATE TABLE `comunicacion` (
   KEY `idx_comunicacion_cita` (`cita_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* alerta (por ejemplo si no responde la persona mayor) */
 CREATE TABLE `alerta` (
   `alerta_id` BIGINT NOT NULL AUTO_INCREMENT,
   `cita_id` BIGINT NOT NULL,
@@ -143,7 +132,6 @@ CREATE TABLE `alerta` (
   KEY `idx_alerta_cita` (`cita_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* notificacion */
 CREATE TABLE `notificacion` (
   `notificacion_id` BIGINT NOT NULL AUTO_INCREMENT,
   `tipo` ENUM('recordatorio','llamada_proxima','alerta') NOT NULL,
@@ -154,7 +142,6 @@ CREATE TABLE `notificacion` (
   PRIMARY KEY (`notificacion_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* notificacion_usuario */
 CREATE TABLE `notificacion_usuario` (
   `usuario_id` CHAR(36) NOT NULL,
   `notificacion_id` BIGINT NOT NULL,
@@ -204,118 +191,54 @@ ALTER TABLE `notificacion_usuario`
 SET FOREIGN_KEY_CHECKS = 1;
 
 /* ===========================================================
-    3) DUMMIES - Datos de ejemplo
+    3) DUMMIES - Datos de ejemplo (sin variables)
    =========================================================== */
 
 START TRANSACTION;
 
 /* Roles */
 INSERT INTO rol (nombre) VALUES ('supervisor'), ('teleoperador');
-SET @ROL_SUPERVISOR := (SELECT rol_id FROM rol WHERE nombre='supervisor');
-SET @ROL_TELEOPERADOR := (SELECT rol_id FROM rol WHERE nombre='teleoperador');
 
-/* IDs de usuario */
-SET @U_SUPERVISOR := '00000000-0000-0000-0000-000000000001';
-SET @U_TELEOP1 := '00000000-0000-0000-0000-000000000002';
-SET @U_TELEOP2 := '00000000-0000-0000-0000-000000000003';
-
-/* Passwords hash bcrypt de 'temporal123' */
-SET @PWD := '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy';
-
-/* Usuarios base */
-INSERT INTO usuario (usuario_id, nombre, apellido, email, password_hash, telefono, activo)
-VALUES
-(@U_SUPERVISOR, 'Laura', 'Martínez', 'supervisor@cuidemjunts.local', @PWD, '600000001', TRUE),
-(@U_TELEOP1, 'Javier', 'Sánchez', 'teleop1@cuidemjunts.local', @PWD, '600000002', TRUE),
-(@U_TELEOP2, 'Marta', 'Ruiz', 'teleop2@cuidemjunts.local', @PWD, '600000003', TRUE);
+/* Usuarios */
+INSERT INTO usuario (usuario_id, nombre, apellido, email, password_hash, telefono, activo) VALUES
+('00000000-0000-0000-0000-000000000001', 'Laura', 'Martínez', 'supervisor@cuidemjunts.local', '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy', '600000001', TRUE),
+('00000000-0000-0000-0000-000000000002', 'Javier', 'Sánchez', 'teleop1@cuidemjunts.local', '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy', '600000002', TRUE),
+('00000000-0000-0000-0000-000000000003', 'Marta', 'Ruiz', 'teleop2@cuidemjunts.local', '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy', '600000003', TRUE);
 
 /* Roles asignados */
-INSERT INTO rol_usuario (usuario_id, rol_id)
-VALUES
-(@U_SUPERVISOR, @ROL_SUPERVISOR),
-(@U_TELEOP1, @ROL_TELEOPERADOR),
-(@U_TELEOP2, @ROL_TELEOPERADOR);
+INSERT INTO rol_usuario (usuario_id, rol_id) VALUES
+('00000000-0000-0000-0000-000000000001', 1),
+('00000000-0000-0000-0000-000000000002', 2),
+('00000000-0000-0000-0000-000000000003', 2);
 
-/* Trabajadores */
-INSERT INTO trabajador (trabajador_id, dni)
-VALUES
-(@U_SUPERVISOR, '12345678A'),
-(@U_TELEOP1, '87654321B'),
-(@U_TELEOP2, '11223344C');
+/* Trabajadores y jerarquía */
+INSERT INTO trabajador (trabajador_id, dni) VALUES
+('00000000-0000-0000-0000-000000000001', '12345678A'),
+('00000000-0000-0000-0000-000000000002', '87654321B'),
+('00000000-0000-0000-0000-000000000003', '11223344C');
 
-/* Supervisor */
-INSERT INTO supervisor (supervisor_id) VALUES (@U_SUPERVISOR);
+INSERT INTO supervisor (supervisor_id) VALUES ('00000000-0000-0000-0000-000000000001');
 
-/* Teleoperadores asignados al supervisor */
-INSERT INTO teleoperador (teleoperador_id, supervisor_id)
-VALUES
-(@U_TELEOP1, @U_SUPERVISOR),
-(@U_TELEOP2, @U_SUPERVISOR);
+INSERT INTO teleoperador (teleoperador_id, supervisor_id) VALUES
+('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001'),
+('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001');
 
 /* Personas mayores */
-SET @P1 := UUID();
-SET @P2 := UUID();
-SET @P3 := UUID();
-
-INSERT INTO persona_mayor (
-  persona_id, nombre, apellido, telefono, fecha_nacimiento, direccion, nivel_dependencia,
-  frecuencia_llamadas, hora_preferida, estado, intereses, notas_medicas, teleoperador_asignado
-)
-VALUES
-(@P1, 'María', 'González López', '612345678', '1940-03-15', 'Calle Mayor 45, Barcelona', 'Leve',
- 'Semanal', '10:00:00', 'Activo', 'Le gusta la jardinería y hablar de sus nietos', 'Hipertensión controlada con medicación', @U_TELEOP1),
-
-(@P2, 'Antonio', 'Pérez Torres', '611223344', '1938-05-22', 'Av. Cataluña 12, Girona', 'Moderado',
- 'Diaria', '09:30:00', 'Activo', 'Aficionado al fútbol y los crucigramas', 'Artrosis leve', @U_TELEOP2),
-
-(@P3, 'Carmen', 'López Díaz', '633445566', '1945-09-10', 'Calle Montserrat 8, Tarragona', 'Grave',
- 'Semanal', '11:00:00', 'Activo', 'Le gusta escuchar música clásica', 'Diabética tipo 2 controlada', @U_TELEOP1);
-
-/* Contactos de emergencia */
-INSERT INTO contacto_emergencia (persona_id, nombre, relacion, telefono)
-VALUES
-(@P1, 'Ana González', 'Hija', '654321098'),
-(@P2, 'Luis Pérez', 'Hijo', '699887766'),
-(@P3, 'Teresa López', 'Hermana', '677554433');
-
-/* Citas (llamadas programadas) */
-INSERT INTO cita (persona_id, teleoperador_id, fecha, hora_inicio)
-VALUES
-(@P1, @U_TELEOP1, '2025-01-15', '10:00:00'),
-(@P2, @U_TELEOP2, '2025-01-16', '09:30:00'),
-(@P3, @U_TELEOP1, '2025-01-17', '11:00:00');
-
-SET @CITA1 := LAST_INSERT_ID() - 2;
-SET @CITA2 := LAST_INSERT_ID() - 1;
-SET @CITA3 := LAST_INSERT_ID();
-
-/* Comunicaciones (resultado de llamadas) */
-INSERT INTO comunicacion (cita_id, estado_animo, temas_tratados, observaciones, fecha, hora_inicio, hora_fin)
-VALUES
-(@CITA1, 'Muy Bien', 'Hablamos sobre su jardín y sus nietos.', 'Muy buen ánimo, activa y conversadora.', '2025-01-15', '10:00:00', '10:20:00'),
-(@CITA2, 'Normal', 'Comentamos el partido del Barça.', 'Estaba algo distraído pero tranquilo.', '2025-01-16', '09:30:00', '09:50:00');
-
-/* Alerta (ejemplo: no contesta) */
-INSERT INTO alerta (cita_id, tipo, descripcion)
-VALUES
-(@CITA3, 'No contesta', 'No respondió a la llamada programada. Se recomienda contactar con su hermana.');
+INSERT INTO persona_mayor (persona_id, nombre, apellido, telefono, fecha_nacimiento, direccion, nivel_dependencia, frecuencia_llamadas, hora_preferida, estado, intereses, notas_medicas, teleoperador_asignado) VALUES
+(UUID(), 'María', 'González López', '612345678', '1940-03-15', 'Calle Mayor 45, Barcelona', 'Leve', 'Semanal', '10:00:00', 'Activo', 'Le gusta la jardinería y hablar de sus nietos', 'Hipertensión controlada con medicación', '00000000-0000-0000-0000-000000000002'),
+(UUID(), 'Antonio', 'Pérez Torres', '611223344', '1938-05-22', 'Av. Cataluña 12, Girona', 'Moderado', 'Diaria', '09:30:00', 'Activo', 'Aficionado al fútbol y los crucigramas', 'Artrosis leve', '00000000-0000-0000-0000-000000000003'),
+(UUID(), 'Carmen', 'López Díaz', '633445566', '1945-09-10', 'Calle Montserrat 8, Tarragona', 'Grave', 'Semanal', '11:00:00', 'Activo', 'Le gusta escuchar música clásica', 'Diabética tipo 2 controlada', '00000000-0000-0000-0000-000000000002');
 
 /* Notificaciones */
-INSERT INTO notificacion (tipo, titulo, mensaje, prioridad)
-VALUES
+INSERT INTO notificacion (tipo, titulo, mensaje, prioridad) VALUES
 ('recordatorio', 'Recordatorio', 'No olvides registrar los detalles de tu última llamada.', 'baja'),
 ('llamada_proxima', 'Llamada Próxima', 'Tienes una llamada programada con María González.', 'media'),
 ('alerta', 'Posible Incidencia', 'Carmen López no respondió a la llamada prevista.', 'alta');
 
-SET @N1 := (SELECT notificacion_id FROM notificacion WHERE tipo='recordatorio' LIMIT 1);
-SET @N2 := (SELECT notificacion_id FROM notificacion WHERE tipo='llamada_proxima' LIMIT 1);
-SET @N3 := (SELECT notificacion_id FROM notificacion WHERE tipo='alerta' LIMIT 1);
-
-/* Notificaciones asignadas a teleoperadores */
-INSERT INTO notificacion_usuario (usuario_id, notificacion_id, leida)
-VALUES
-(@U_TELEOP1, @N1, TRUE),
-(@U_TELEOP1, @N2, FALSE),
-(@U_TELEOP1, @N3, FALSE);
+/* Notificaciones asignadas */
+INSERT INTO notificacion_usuario (usuario_id, notificacion_id, leida) VALUES
+('00000000-0000-0000-0000-000000000002', 1, TRUE),
+('00000000-0000-0000-0000-000000000002', 2, FALSE),
+('00000000-0000-0000-0000-000000000002', 3, FALSE);
 
 COMMIT;
