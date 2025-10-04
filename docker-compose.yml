@@ -15,10 +15,10 @@ services:
       - NODE_ENV=${NODE_ENV}
     ports:
       - ${WEB_SERVER_PORT}:3000
-    working_dir: /web
+    working_dir: /web/nest_backend
     command: pm2-runtime start pm2.json
     volumes:
-      - .:/web
+      - ./nest_backend:/web/nest_backend
     networks:
       - cuidemjunts-network
 
@@ -47,10 +47,10 @@ services:
     depends_on:
       - database
     environment:
-      PMA_HOST: database # nombre del servicio de tu MySQL
+      PMA_HOST: database
       PMA_USER: ${DB_USER}
       PMA_PASSWORD: ${DB_PASSWORD}
-      UPLOAD_LIMIT: 256M # opcional, límite de subida de archivos .sql
+      UPLOAD_LIMIT: 256M
       BLOWFISH_SECRET: ${BLOWFISH_SECRET}
     ports:
       - "8081:80"

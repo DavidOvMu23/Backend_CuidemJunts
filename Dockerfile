@@ -1,11 +1,20 @@
 FROM node:24-alpine
-LABEL maintainer="Keymetrics <contact@keymetrics.io>"
 
-# Install pm2
-RUN npm install pm2 -g
+# Define el directorio de trabajo
+WORKDIR /web/nest_backend
 
-# Expose ports needed to use Keymetrics.io
-EXPOSE 80 443 43554
+# Copia los archivos de NestJS
+COPY nest_backend/package*.json ./
 
-# Start pm2.json process file
+# Instala PM2 y dependencias del proyecto
+RUN npm install -g pm2
+RUN npm install
+
+# Copia el resto del backend
+COPY nest_backend .
+
+# Expone el puerto del backend
+EXPOSE 3000
+
+# Arranca con PM2
 CMD ["pm2-runtime", "start", "pm2.json"]
