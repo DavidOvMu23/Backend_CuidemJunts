@@ -1,244 +1,314 @@
 /* ===========================================================
-    CuidemJunts - MariaDB (versión sin variables)
+   CuidemJunts - MariaDB
    =========================================================== */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-/* ---------- DROPS (orden seguro) ---------- */
-DROP TABLE IF EXISTS `alerta`;
-DROP TABLE IF EXISTS `comunicacion`;
-DROP TABLE IF EXISTS `cita`;
-DROP TABLE IF EXISTS `contacto_emergencia`;
-DROP TABLE IF EXISTS `persona_mayor`;
-DROP TABLE IF EXISTS `trabajador`;
-DROP TABLE IF EXISTS `supervisor`;
-DROP TABLE IF EXISTS `teleoperador`;
-DROP TABLE IF EXISTS `notificacion_usuario`;
+/* ---------- DROPS en orden seguro ---------- */
+DROP TABLE IF EXISTS `usuario_contacto`;
 DROP TABLE IF EXISTS `notificacion`;
-DROP TABLE IF EXISTS `rol_usuario`;
-DROP TABLE IF EXISTS `rol`;
+DROP TABLE IF EXISTS `comunicacion`;
+DROP TABLE IF EXISTS `contacto_emergencia`;
 DROP TABLE IF EXISTS `usuario`;
+DROP TABLE IF EXISTS `teleoperador`;
+DROP TABLE IF EXISTS `supervisor`;
+DROP TABLE IF EXISTS `grupo`;
+DROP TABLE IF EXISTS `trabajador`;
 
 /* ===========================================================
-    1) CREATE TABLES
+   1) CREATE TABLES (sin FKs)
    =========================================================== */
 
-CREATE TABLE `usuario` (
-  `usuario_id` CHAR(36) NOT NULL,
-  `nombre` VARCHAR(100) NOT NULL,
-  `apellido` VARCHAR(100) NOT NULL,
-  `email` VARCHAR(100) NOT NULL UNIQUE,
-  `password_hash` VARCHAR(255) NOT NULL,
-  `telefono` VARCHAR(20) DEFAULT NULL,
-  `activo` BOOLEAN DEFAULT TRUE,
-  `creado_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`usuario_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE `rol` (
-  `rol_id` INT NOT NULL AUTO_INCREMENT,
-  `nombre` ENUM('supervisor','teleoperador') NOT NULL,
-  PRIMARY KEY (`rol_id`),
-  UNIQUE KEY `uq_rol_nombre` (`nombre`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE `rol_usuario` (
-  `usuario_id` CHAR(36) NOT NULL,
-  `rol_id` INT NOT NULL,
-  PRIMARY KEY (`usuario_id`,`rol_id`),
-  KEY `idx_rol_usuario_rol` (`rol_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
+/* trabajador (supertipo) */
 CREATE TABLE `trabajador` (
-  `trabajador_id` CHAR(36) NOT NULL,
-  `dni` VARCHAR(20) NOT NULL,
-  PRIMARY KEY (`trabajador_id`),
-  UNIQUE KEY `uq_trabajador_dni` (`dni`)
+  `id_trab` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(60) NOT NULL,
+  `apellidos` VARCHAR(120) NOT NULL,
+  `correo` VARCHAR(120) NOT NULL,
+  `contrasena_hash` VARCHAR(100) NOT NULL,
+  `tipo` ENUM('teleoperador','supervisor') NOT NULL,
+  `creado_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_trab`),
+  UNIQUE KEY `uq_trab_correo` (`correo`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `supervisor` (
-  `supervisor_id` CHAR(36) NOT NULL,
-  PRIMARY KEY (`supervisor_id`)
+/* grupo */
+CREATE TABLE `grupo` (
+  `id_grup` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(80) NOT NULL,
+  `descripcion` VARCHAR(255) DEFAULT NULL,
+  `activo` BOOLEAN NOT NULL DEFAULT TRUE,
+  PRIMARY KEY (`id_grup`),
+  UNIQUE KEY `uq_grupo_nombre` (`nombre`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+/* teleoperador (subtipo 1:1 con trabajador) */
 CREATE TABLE `teleoperador` (
-  `teleoperador_id` CHAR(36) NOT NULL,
-  `supervisor_id` CHAR(36) NOT NULL,
-  PRIMARY KEY (`teleoperador_id`),
-  KEY `idx_teleoperador_supervisor` (`supervisor_id`)
+  `id_trab` INT NOT NULL,
+  `nia` VARCHAR(20) NOT NULL,
+  `id_grup` INT DEFAULT NULL,          -- Pertenece a un grupo
+  `activo` BOOLEAN NOT NULL DEFAULT TRUE,
+  PRIMARY KEY (`id_trab`),
+  UNIQUE KEY `uq_teleoperador_nia` (`nia`),
+  KEY `idx_teleoperador_grupo` (`id_grup`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `persona_mayor` (
-  `persona_id` CHAR(36) NOT NULL,
-  `nombre` VARCHAR(100) NOT NULL,
-  `apellido` VARCHAR(100) NOT NULL,
-  `telefono` VARCHAR(20) NOT NULL,
-  `fecha_nacimiento` DATE NOT NULL,
-  `direccion` VARCHAR(255) DEFAULT NULL,
-  `nivel_dependencia` ENUM('Leve','Moderado','Grave') DEFAULT 'Leve',
-  `frecuencia_llamadas` ENUM('Diaria','Semanal','Mensual') DEFAULT 'Semanal',
-  `hora_preferida` TIME DEFAULT NULL,
-  `estado` ENUM('Activo','Inactivo') DEFAULT 'Activo',
-  `intereses` TEXT DEFAULT NULL,
-  `notas_medicas` TEXT DEFAULT NULL,
-  `teleoperador_asignado` CHAR(36) DEFAULT NULL,
-  PRIMARY KEY (`persona_id`),
-  KEY `idx_persona_teleoperador` (`teleoperador_asignado`)
+/* supervisor (subtipo 1:1 con trabajador) */
+CREATE TABLE `supervisor` (
+  `id_trab` INT NOT NULL,
+  `dni` VARCHAR(12) NOT NULL,
+  `id_grup` INT DEFAULT NULL,          -- Pertenece a un grupo
+  `activo` BOOLEAN NOT NULL DEFAULT TRUE,
+  PRIMARY KEY (`id_trab`),
+  UNIQUE KEY `uq_supervisor_dni` (`dni`),
+  KEY `idx_supervisor_grupo` (`id_grup`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+/* usuario (beneficiario) */
+CREATE TABLE `usuario` (
+  `dni` VARCHAR(12) NOT NULL,
+  `nombre` VARCHAR(60) NOT NULL,
+  `apellidos` VARCHAR(120) NOT NULL,
+  `informacion` VARCHAR(255) DEFAULT NULL,
+  `estado_cuenta` ENUM('activo','suspendido','baja') NOT NULL DEFAULT 'activo',
+  `f_nac` DATE DEFAULT NULL,
+  `nivel_dependencia` ENUM('ninguna','leve','moderada','severa') NOT NULL DEFAULT 'ninguna',
+  `datos_medicos` TEXT,
+  `medicacion` TEXT,
+  /* extras inspirados en UI (opcionales) */
+  `telefono` VARCHAR(20) DEFAULT NULL,
+  `direccion` VARCHAR(180) DEFAULT NULL,
+  `creado_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`dni`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* contacto_emergencia (puede referenciar a otro usuario o ser externo) */
 CREATE TABLE `contacto_emergencia` (
-  `contacto_id` BIGINT NOT NULL AUTO_INCREMENT,
-  `persona_id` CHAR(36) NOT NULL,
-  `nombre` VARCHAR(100) NOT NULL,
-  `relacion` VARCHAR(50) DEFAULT NULL,
+  `id_cont` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(60) NOT NULL,
+  `apellidos` VARCHAR(120) NOT NULL,
   `telefono` VARCHAR(20) NOT NULL,
-  PRIMARY KEY (`contacto_id`),
-  KEY `idx_contacto_persona` (`persona_id`)
+  `relacion` VARCHAR(40) NOT NULL,           -- Hija, Esposo, Vecina…
+  `dni_usuario_ref` VARCHAR(12) DEFAULT NULL, -- Si el contacto es un usuario registrado
+  PRIMARY KEY (`id_cont`),
+  KEY `idx_contacto_usuario_ref` (`dni_usuario_ref`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `cita` (
-  `cita_id` BIGINT NOT NULL AUTO_INCREMENT,
-  `persona_id` CHAR(36) NOT NULL,
-  `teleoperador_id` CHAR(36) NOT NULL,
-  `fecha` DATE NOT NULL,
-  `hora_inicio` TIME NOT NULL,
-  `hora_fin` TIME DEFAULT NULL,
-  PRIMARY KEY (`cita_id`),
-  KEY `idx_cita_persona` (`persona_id`),
-  KEY `idx_cita_teleoperador` (`teleoperador_id`)
+/* relación N:M Usuario ⟷ Contacto de emergencia (ajusta el DER a la realidad de varios contactos) */
+CREATE TABLE `usuario_contacto` (
+  `dni_usuario` VARCHAR(12) NOT NULL,
+  `id_cont` INT NOT NULL,
+  PRIMARY KEY (`dni_usuario`,`id_cont`),
+  KEY `idx_uc_contacto` (`id_cont`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+/* comunicacion (la realiza un grupo y va a un usuario) */
 CREATE TABLE `comunicacion` (
-  `comunicacion_id` BIGINT NOT NULL AUTO_INCREMENT,
-  `cita_id` BIGINT NOT NULL,
-  `estado_animo` VARCHAR(100) DEFAULT NULL,
-  `temas_tratados` TEXT DEFAULT NULL,
-  `observaciones` TEXT DEFAULT NULL,
-  `fecha` DATE NOT NULL DEFAULT (CURRENT_DATE),
-  `hora_inicio` TIME DEFAULT NULL,
-  `hora_fin` TIME DEFAULT NULL,
-  PRIMARY KEY (`comunicacion_id`),
-  KEY `idx_comunicacion_cita` (`cita_id`)
+  `id_com` BIGINT NOT NULL AUTO_INCREMENT,
+  `id_grup` INT NOT NULL,                 -- Realiza (Grupo)
+  `dni_usuario` VARCHAR(12) NOT NULL,     -- a (Usuario)
+  `fecha` DATE NOT NULL,
+  `hora` TIME NOT NULL,
+  `duracion_min` SMALLINT NOT NULL,
+  `resumen` VARCHAR(255) NOT NULL,
+  `observaciones` TEXT,
+  `estado` ENUM('completada','no_contesto','pendiente','cancelada','programada') NOT NULL DEFAULT 'pendiente',
+  PRIMARY KEY (`id_com`),
+  KEY `idx_com_grupo` (`id_grup`),
+  KEY `idx_com_usuario` (`dni_usuario`),
+  KEY `idx_com_fecha` (`fecha`,`hora`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `alerta` (
-  `alerta_id` BIGINT NOT NULL AUTO_INCREMENT,
-  `cita_id` BIGINT NOT NULL,
-  `tipo` ENUM('No contesta','Emergencia','Otro') NOT NULL,
-  `descripcion` TEXT DEFAULT NULL,
-  `creada_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`alerta_id`),
-  KEY `idx_alerta_cita` (`cita_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
+/* notificacion (pertenece a un teleoperador) */
 CREATE TABLE `notificacion` (
-  `notificacion_id` BIGINT NOT NULL AUTO_INCREMENT,
-  `tipo` ENUM('recordatorio','llamada_proxima','alerta') NOT NULL,
-  `titulo` VARCHAR(100) NOT NULL,
-  `mensaje` VARCHAR(255) NOT NULL,
-  `prioridad` ENUM('baja','media','alta') DEFAULT 'baja',
+  `id_not` BIGINT NOT NULL AUTO_INCREMENT,
+  `id_teleoperador` INT NOT NULL,       -- Tiene (Teleoperador)
+  `contenido` VARCHAR(500) NOT NULL,
+  `estado` ENUM('sin_leer','leida','archivada','cancelada') NOT NULL DEFAULT 'sin_leer',
   `creada_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`notificacion_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE `notificacion_usuario` (
-  `usuario_id` CHAR(36) NOT NULL,
-  `notificacion_id` BIGINT NOT NULL,
-  `leida` BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (`usuario_id`,`notificacion_id`),
-  KEY `idx_notificacion_usuario_notificacion` (`notificacion_id`)
+  PRIMARY KEY (`id_not`),
+  KEY `idx_not_teleop` (`id_teleoperador`),
+  KEY `idx_not_estado` (`estado`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /* ===========================================================
-    2) FOREIGN KEYS
+   2) FOREIGN KEYS
    =========================================================== */
-
-ALTER TABLE `rol_usuario`
-  ADD CONSTRAINT `fk_rol_usuario_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario`(`usuario_id`),
-  ADD CONSTRAINT `fk_rol_usuario_rol` FOREIGN KEY (`rol_id`) REFERENCES `rol`(`rol_id`);
-
-ALTER TABLE `trabajador`
-  ADD CONSTRAINT `fk_trabajador_usuario` FOREIGN KEY (`trabajador_id`) REFERENCES `usuario`(`usuario_id`);
-
-ALTER TABLE `supervisor`
-  ADD CONSTRAINT `fk_supervisor_trabajador` FOREIGN KEY (`supervisor_id`) REFERENCES `trabajador`(`trabajador_id`);
 
 ALTER TABLE `teleoperador`
-  ADD CONSTRAINT `fk_teleoperador_trabajador` FOREIGN KEY (`teleoperador_id`) REFERENCES `trabajador`(`trabajador_id`),
-  ADD CONSTRAINT `fk_teleoperador_supervisor` FOREIGN KEY (`supervisor_id`) REFERENCES `supervisor`(`supervisor_id`);
+  ADD CONSTRAINT `fk_tel_trab` FOREIGN KEY (`id_trab`) REFERENCES `trabajador`(`id_trab`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_tel_grupo` FOREIGN KEY (`id_grup`) REFERENCES `grupo`(`id_grup`);
 
-ALTER TABLE `persona_mayor`
-  ADD CONSTRAINT `fk_persona_teleoperador` FOREIGN KEY (`teleoperador_asignado`) REFERENCES `teleoperador`(`teleoperador_id`);
+ALTER TABLE `supervisor`
+  ADD CONSTRAINT `fk_sup_trab` FOREIGN KEY (`id_trab`) REFERENCES `trabajador`(`id_trab`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_sup_grupo` FOREIGN KEY (`id_grup`) REFERENCES `grupo`(`id_grup`);
 
 ALTER TABLE `contacto_emergencia`
-  ADD CONSTRAINT `fk_contacto_persona` FOREIGN KEY (`persona_id`) REFERENCES `persona_mayor`(`persona_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_contacto_usuario_ref` FOREIGN KEY (`dni_usuario_ref`) REFERENCES `usuario`(`dni`) ON DELETE SET NULL;
 
-ALTER TABLE `cita`
-  ADD CONSTRAINT `fk_cita_persona` FOREIGN KEY (`persona_id`) REFERENCES `persona_mayor`(`persona_id`),
-  ADD CONSTRAINT `fk_cita_teleoperador` FOREIGN KEY (`teleoperador_id`) REFERENCES `teleoperador`(`teleoperador_id`);
+ALTER TABLE `usuario_contacto`
+  ADD CONSTRAINT `fk_uc_usuario` FOREIGN KEY (`dni_usuario`) REFERENCES `usuario`(`dni`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_uc_contacto` FOREIGN KEY (`id_cont`) REFERENCES `contacto_emergencia`(`id_cont`) ON DELETE CASCADE;
 
 ALTER TABLE `comunicacion`
-  ADD CONSTRAINT `fk_comunicacion_cita` FOREIGN KEY (`cita_id`) REFERENCES `cita`(`cita_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_com_grupo` FOREIGN KEY (`id_grup`) REFERENCES `grupo`(`id_grup`),
+  ADD CONSTRAINT `fk_com_usuario` FOREIGN KEY (`dni_usuario`) REFERENCES `usuario`(`dni`);
 
-ALTER TABLE `alerta`
-  ADD CONSTRAINT `fk_alerta_cita` FOREIGN KEY (`cita_id`) REFERENCES `cita`(`cita_id`) ON DELETE CASCADE;
-
-ALTER TABLE `notificacion_usuario`
-  ADD CONSTRAINT `fk_notificacion_usuario_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario`(`usuario_id`),
-  ADD CONSTRAINT `fk_notificacion_usuario_notificacion` FOREIGN KEY (`notificacion_id`) REFERENCES `notificacion`(`notificacion_id`);
-
-SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE `notificacion`
+  ADD CONSTRAINT `fk_not_teleop` FOREIGN KEY (`id_teleoperador`) REFERENCES `teleoperador`(`id_trab`);
 
 /* ===========================================================
-    3) DUMMIES - Datos de ejemplo (sin variables)
+   3) DUMMIES (muchos datos realistas)
    =========================================================== */
 
 START TRANSACTION;
 
-/* Roles */
-INSERT INTO rol (nombre) VALUES ('supervisor'), ('teleoperador');
+/* Hash de ejemplo (bcrypt de 'temporal123') */
+SET @PWD := '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy';
 
-/* Usuarios */
-INSERT INTO usuario (usuario_id, nombre, apellido, email, password_hash, telefono, activo) VALUES
-('00000000-0000-0000-0000-000000000001', 'Laura', 'Martínez', 'supervisor@cuidemjunts.local', '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy', '600000001', TRUE),
-('00000000-0000-0000-0000-000000000002', 'Javier', 'Sánchez', 'teleop1@cuidemjunts.local', '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy', '600000002', TRUE),
-('00000000-0000-0000-0000-000000000003', 'Marta', 'Ruiz', 'teleop2@cuidemjunts.local', '$2b$12$oqtmAKfZU0z/VHWlXBjAHOxFT0azngUga6y2H0pWZRVjtIffhRSdy', '600000003', TRUE);
+/* Grupos */
+INSERT INTO grupo (nombre, descripcion, activo) VALUES
+('Atención Mañanas','Turno 08:00–15:00',TRUE),
+('Atención Tardes','Turno 15:00–22:00',TRUE),
+('Atención Noches','Turno 22:00–08:00',TRUE),
+('Seguimiento Crónicos','Casos con dependencia moderada/severa',TRUE);
 
-/* Roles asignados */
-INSERT INTO rol_usuario (usuario_id, rol_id) VALUES
-('00000000-0000-0000-0000-000000000001', 1),
-('00000000-0000-0000-0000-000000000002', 2),
-('00000000-0000-0000-0000-000000000003', 2);
+SET @G_MAN := (SELECT id_grup FROM grupo WHERE nombre='Atención Mañanas');
+SET @G_TAR := (SELECT id_grup FROM grupo WHERE nombre='Atención Tardes');
+SET @G_NOC := (SELECT id_grup FROM grupo WHERE nombre='Atención Noches');
+SET @G_CRO := (SELECT id_grup FROM grupo WHERE nombre='Seguimiento Crónicos');
 
-/* Trabajadores y jerarquía */
-INSERT INTO trabajador (trabajador_id, dni) VALUES
-('00000000-0000-0000-0000-000000000001', '12345678A'),
-('00000000-0000-0000-0000-000000000002', '87654321B'),
-('00000000-0000-0000-0000-000000000003', '11223344C');
+/* Trabajadores (supertipo) */
+INSERT INTO trabajador (nombre,apellidos,correo,contrasena_hash,tipo) VALUES
+('Sofía','Martín Prado','sofia.martin@cuidem.local',@PWD,'supervisor'),
+('Javier','Rovira Díaz','javier.rovira@cuidem.local',@PWD,'supervisor'),
+('Laura','Gómez Vera','laura.gomez@cuidem.local',@PWD,'teleoperador'),
+('Carlos','Navas Gil','carlos.navas@cuidem.local',@PWD,'teleoperador'),
+('Noa','Benítez Pardo','noa.benitez@cuidem.local',@PWD,'teleoperador'),
+('Pablo','Rey Serrano','pablo.rey@cuidem.local',@PWD,'teleoperador'),
+('Inés','Campos León','ines.campos@cuidem.local',@PWD,'teleoperador'),
+('Hugo','Santos Ibarra','hugo.santos@cuidem.local',@PWD,'teleoperador');
 
-INSERT INTO supervisor (supervisor_id) VALUES ('00000000-0000-0000-0000-000000000001');
+SET @SUP1 := (SELECT id_trab FROM trabajador WHERE correo='sofia.martin@cuidem.local');
+SET @SUP2 := (SELECT id_trab FROM trabajador WHERE correo='javier.rovira@cuidem.local');
+SET @TEL1 := (SELECT id_trab FROM trabajador WHERE correo='laura.gomez@cuidem.local');
+SET @TEL2 := (SELECT id_trab FROM trabajador WHERE correo='carlos.navas@cuidem.local');
+SET @TEL3 := (SELECT id_trab FROM trabajador WHERE correo='noa.benitez@cuidem.local');
+SET @TEL4 := (SELECT id_trab FROM trabajador WHERE correo='pablo.rey@cuidem.local');
+SET @TEL5 := (SELECT id_trab FROM trabajador WHERE correo='ines.campos@cuidem.local');
+SET @TEL6 := (SELECT id_trab FROM trabajador WHERE correo='hugo.santos@cuidem.local');
 
-INSERT INTO teleoperador (teleoperador_id, supervisor_id) VALUES
-('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001'),
-('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001');
+/* Subtipos */
+INSERT INTO supervisor (id_trab,dni,id_grup,activo) VALUES
+(@SUP1,'49223311X',@G_MAN,TRUE),
+(@SUP2,'12345678Z',@G_TAR,TRUE);
 
-/* Personas mayores */
-INSERT INTO persona_mayor (persona_id, nombre, apellido, telefono, fecha_nacimiento, direccion, nivel_dependencia, frecuencia_llamadas, hora_preferida, estado, intereses, notas_medicas, teleoperador_asignado) VALUES
-(UUID(), 'María', 'González López', '612345678', '1940-03-15', 'Calle Mayor 45, Barcelona', 'Leve', 'Semanal', '10:00:00', 'Activo', 'Le gusta la jardinería y hablar de sus nietos', 'Hipertensión controlada con medicación', '00000000-0000-0000-0000-000000000002'),
-(UUID(), 'Antonio', 'Pérez Torres', '611223344', '1938-05-22', 'Av. Cataluña 12, Girona', 'Moderado', 'Diaria', '09:30:00', 'Activo', 'Aficionado al fútbol y los crucigramas', 'Artrosis leve', '00000000-0000-0000-0000-000000000003'),
-(UUID(), 'Carmen', 'López Díaz', '633445566', '1945-09-10', 'Calle Montserrat 8, Tarragona', 'Grave', 'Semanal', '11:00:00', 'Activo', 'Le gusta escuchar música clásica', 'Diabética tipo 2 controlada', '00000000-0000-0000-0000-000000000002');
+INSERT INTO teleoperador (id_trab,nia,id_grup,activo) VALUES
+(@TEL1,'NIA0001',@G_MAN,TRUE),
+(@TEL2,'NIA0002',@G_MAN,TRUE),
+(@TEL3,'NIA0003',@G_TAR,TRUE),
+(@TEL4,'NIA0004',@G_TAR,TRUE),
+(@TEL5,'NIA0005',@G_NOC,TRUE),
+(@TEL6,'NIA0006',@G_CRO,TRUE);
 
-/* Notificaciones */
-INSERT INTO notificacion (tipo, titulo, mensaje, prioridad) VALUES
-('recordatorio', 'Recordatorio', 'No olvides registrar los detalles de tu última llamada.', 'baja'),
-('llamada_proxima', 'Llamada Próxima', 'Tienes una llamada programada con María González.', 'media'),
-('alerta', 'Posible Incidencia', 'Carmen López no respondió a la llamada prevista.', 'alta');
+/* Usuarios (beneficiarios) */
+INSERT INTO usuario
+(dni,nombre,apellidos,informacion,estado_cuenta,f_nac,nivel_dependencia,datos_medicos,medicacion,telefono,direccion) VALUES
+('11111111A','Carmen','Rodríguez Sanz','Vive sola, pulsera SOS','activo','1945-11-30','leve','HTA y artrosis','Lisinopril 10mg','634567890','Plaza España 8, Barcelona'),
+('22222222B','José','Martínez Ruiz','Acompañamiento tardes','activo','1938-07-22','moderada','DM2 controlada','Metformina 850mg','687654321','Av. Diagonal 123, Barcelona'),
+('33333333C','María','González López','Seguimiento telefónico semanal','activo','1942-01-15','ninguna',NULL,NULL,'612345678','C/ Alcalá 15, Madrid'),
+('44444444D','Dolores','Quintana Lara','Refiere soledad no deseada','activo','1950-07-18','leve',NULL,NULL,'611223344','C/ Mayor 4, Zaragoza'),
+('55555555E','Eduardo','Iglesias Vela','Alta reciente por caída','activo','1939-01-30','moderada','Frágil, caídas previas','Vitamina D','699112233','C/ Real 22, Sevilla'),
+('66666666F','Felisa','Maroto Pina','Valorar derivación a TS','suspendido','1946-03-12','ninguna','Dolor lumbar','Paracetamol','633998877','C/ Sol 9, Valencia'),
+('77777777G','Antonio','López García','Vive con su esposa Carmen','activo','1943-02-02','severa','EPOC severa','Broncodilatador PRN','678112233','Plaza España 8, Barcelona'),
+('88888888H','Laura','Rodríguez Pérez','Hija de Carmen','activo','1972-06-10','ninguna',NULL,NULL,'645678901','C/ Marina 12, Barcelona'),
+('99999999J','Pedro','Martínez Gómez','Hijo de José','activo','1970-04-04','ninguna',NULL,NULL,'698765432','C/ Bailén 30, Barcelona');
 
-/* Notificaciones asignadas */
-INSERT INTO notificacion_usuario (usuario_id, notificacion_id, leida) VALUES
-('00000000-0000-0000-0000-000000000002', 1, TRUE),
-('00000000-0000-0000-0000-000000000002', 2, FALSE),
-('00000000-0000-0000-0000-000000000002', 3, FALSE);
+/* Contactos de emergencia:
+   - Algunos referencian usuarios existentes (parejas/hijos)
+   - Otros son externos (vecina, etc.) */
+INSERT INTO contacto_emergencia (nombre,apellidos,telefono,relacion,dni_usuario_ref) VALUES
+('Laura','Rodríguez Pérez','645678901','Hija','88888888H'),     -- también es usuario
+('Antonio','López García','678112233','Esposo','77777777G'),     -- también es usuario
+('Pedro','Martínez Gómez','698765432','Hijo','99999999J'),       -- también es usuario
+('Marta','Vega Ríos','600400400','Vecina',NULL),
+('Carmen','Ruiz Díaz','612398765','Hija',NULL);
+
+/* Enlaces Usuario ↔ Contacto (múltiples por usuario) */
+-- Carmen: su hija Laura y su esposo Antonio (que también es usuario)
+INSERT INTO usuario_contacto (dni_usuario,id_cont)
+SELECT '11111111A', id_cont FROM contacto_emergencia WHERE (telefono IN ('645678901','678112233'));
+
+-- José: sus hijos Pedro y (externa) Carmen Ruiz
+INSERT INTO usuario_contacto (dni_usuario,id_cont)
+SELECT '22222222B', id_cont FROM contacto_emergencia WHERE (telefono IN ('698765432','612398765'));
+
+-- Eduardo: vecina Marta
+INSERT INTO usuario_contacto (dni_usuario,id_cont)
+SELECT '55555555E', id_cont FROM contacto_emergencia WHERE telefono='600400400';
+
+-- Antonio (pareja de Carmen): su contacto es Carmen (ya usuario) y su hija Laura
+INSERT INTO contacto_emergencia (nombre,apellidos,telefono,relacion,dni_usuario_ref) VALUES
+('Carmen','Rodríguez Sanz','634567890','Esposa','11111111A');
+SET @CONT_CARMEN := LAST_INSERT_ID();
+INSERT INTO usuario_contacto (dni_usuario,id_cont) VALUES
+('77777777G', @CONT_CARMEN);
+INSERT INTO usuario_contacto (dni_usuario,id_cont)
+SELECT '77777777G', id_cont FROM contacto_emergencia WHERE telefono='645678901';
+
+/* Comunicaciones (como en las capturas: Completada / No contestó / Pendiente) */
+INSERT INTO comunicacion
+(id_grup,dni_usuario,fecha,hora,duracion_min,resumen,observaciones,estado) VALUES
+(@G_MAN,'33333333C', '2025-01-15','11:05:00',20,'Seguimiento semanal','Conversación fluida. Anima a continuar paseos.','completada'),
+(@G_MAN,'22222222B', '2025-01-14','10:20:00',12,'Intento de llamada','No respondió, se reintenta mañana.','no_contesto'),
+(@G_TAR,'33333333C', '2025-01-13','18:10:00',16,'Recordatorio de cita médica','Confirma asistencia al centro de salud.','completada'),
+(@G_TAR,'11111111A', CURDATE(),'16:30:00',9,'Consulta sobre medicación','Aclara posología nocturna.','completada'),
+(@G_NOC,'55555555E', DATE_SUB(CURDATE(),INTERVAL 1 DAY),'23:50:00',10,'Verificación nocturna','Descanso adecuado, sin incidencias.','completada'),
+(@G_CRO,'77777777G', CURDATE(),'12:40:00',22,'Plan respiratorio revisado','Se pauta control de inhalador.','pendiente'),
+(@G_MAN,'66666666F', CURDATE(),'11:40:00',14,'Derivación a Trabajo Social','Se agenda valoración.','programada'),
+(@G_TAR,'22222222B', CURDATE(),'17:25:00',8,'Revisión glucemias','Lecturas correctas tras comida.','completada'),
+(@G_MAN,'11111111A', DATE_SUB(CURDATE(),INTERVAL 2 DAY),'09:35:00',7,'Aviso sensor movimiento','Falsa alarma (gato).','completada'),
+(@G_TAR,'44444444D', CURDATE(),'19:05:00',30,'Se siente triste','Se propone grupo de conversación.','pendiente');
+
+/* Más comunicaciones para volumen */
+INSERT INTO comunicacion
+(id_grup,dni_usuario,fecha,hora,duracion_min,resumen,observaciones,estado)
+SELECT
+  CASE (n % 4) WHEN 0 THEN @G_MAN WHEN 1 THEN @G_TAR WHEN 2 THEN @G_NOC ELSE @G_CRO END,
+  CASE (n % 7)
+    WHEN 0 THEN '11111111A'
+    WHEN 1 THEN '22222222B'
+    WHEN 2 THEN '33333333C'
+    WHEN 3 THEN '44444444D'
+    WHEN 4 THEN '55555555E'
+    WHEN 5 THEN '66666666F'
+    ELSE '77777777G' END,
+  DATE_SUB(CURDATE(), INTERVAL (n % 18) DAY),
+  SEC_TO_TIME(8*3600 + (n % 840) * 60),
+  5 + (n % 26),
+  CONCAT('Seguimiento rutinario #', n),
+  'Sin observaciones destacables.',
+  CASE (n % 3) WHEN 0 THEN 'completada' WHEN 1 THEN 'pendiente' ELSE 'no_contesto' END
+FROM (
+  SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL
+  SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL
+  SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL
+  SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20
+) t;
+
+/* Notificaciones (estados: sin_leer, leida, archivada, cancelada) */
+INSERT INTO notificacion (id_teleoperador,contenido,estado) VALUES
+(@TEL1,'Tienes 3 llamadas programadas para hoy a partir de las 10:00.','sin_leer'),
+(@TEL1,'La incidencia de centralita quedó resuelta.','leida'),
+(@TEL2,'Recuerda registrar la comunicación con José Martínez.','sin_leer'),
+(@TEL3,'Nueva pauta de comunicación empática — viernes 12:00.','leida'),
+(@TEL4,'Caso escalado a psicología comunitaria.','archivada'),
+(@TEL5,'Se cancela la formación de esta tarde.','cancelada'),
+(@TEL6,'Actualiza el resumen de la llamada de Eduardo.','sin_leer');
 
 COMMIT;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+/* ==================== FIN CuidemJunts.sql ==================== */
