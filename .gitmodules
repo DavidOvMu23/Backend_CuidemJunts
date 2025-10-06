@@ -1,4 +1,4 @@
 [submodule "nest_backend"]
 	path = nest_backend
-	url = https://github.com/DavidOvMu23/nest_backend.git
+	url = git@github.com:DavidOvMu23/nest_backend.git
 	branch = main
