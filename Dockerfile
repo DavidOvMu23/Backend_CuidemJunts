@@ -1,23 +1,27 @@
-FROM node:24-alpine
+# ---- Etapa de construcción ----
+FROM node:18-alpine AS builder
+WORKDIR /usr/src/app
 
-# Define el directorio de trabajo
-WORKDIR /web/nest_backend
-
-# Copia los archivos de dependencias
+# Copia dependencias desde la carpeta nest_backend
 COPY nest_backend/package*.json ./
-
-# Instala PM2 y dependencias del proyecto
-RUN npm install -g pm2
 RUN npm install
 
-# Copia el resto del backend
-COPY nest_backend .
-
-# Compila el código NestJS antes de ejecutar
+# Copia el resto del código y compila
+COPY nest_backend ./
 RUN npm run build
 
-# Expone el puerto del backend
-EXPOSE 3000
+# ---- Etapa de ejecución ----
+FROM node:18-alpine
+WORKDIR /usr/src/app
 
-# Arranca con PM2
-CMD ["pm2-runtime", "start", "pm2.json"]
+# Copia solo lo necesario desde la etapa de build
+COPY --from=builder /usr/src/app/dist ./dist
+COPY nest_backend/package*.json ./
+RUN npm install --only=production
+
+# Variables de entorno opcionales
+ENV NODE_ENV=production
+ENV TZ=Europe/Madrid
+
+EXPOSE 3001
+CMD ["node", "dist/main.js"]
