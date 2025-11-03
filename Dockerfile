@@ -23,5 +23,5 @@ RUN npm install --only=production
 ENV NODE_ENV=production
 ENV TZ=Europe/Madrid
 
-EXPOSE 3000
+EXPOSE 3001
 CMD ["node", "dist/main.js"]
