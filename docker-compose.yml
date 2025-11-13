@@ -29,41 +29,25 @@ services:
       - cuidemjunts-network
 
   database:
-    image: yobasystems/alpine-mariadb:11.4.5
-    container_name: cuidemjunts-mariadb
+    #postgre
+    image: postgres:16-alpine
+    container_name: cuidemjunts-postgres
     restart: unless-stopped
     environment:
-      - MYSQL_DATABASE=${DB_DATABASE}
-      - MYSQL_USER=${DB_USER}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - TZ=${TZ}
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT}:3306"
-    networks:
-      - cuidemjunts-network
-
-  phpmyadmin:
-    image: phpmyadmin:apache
-    container_name: cuidemjunts-phpmyadmin
-    restart: unless-stopped
-    depends_on:
-      - database
-    environment:
-      PMA_HOST: database
-      PMA_USER: ${DB_USER}
-      PMA_PASSWORD: ${DB_PASSWORD}
-      UPLOAD_LIMIT: 256M
-      BLOWFISH_SECRET: ${BLOWFISH_SECRET}
-    ports:
-      - "8081:80"
+      - "${DB_PORT}:5432"
     networks:
       - cuidemjunts-network
 
 volumes:
-  mariadb_data:
+  postgres_data:
     driver: local
 
 networks:
