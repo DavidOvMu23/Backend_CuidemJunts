@@ -40,15 +40,11 @@ services:
       - POSTGRES_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - TZ=${TZ}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
     ports:
       - "${DB_PORT}:5432"
     networks:
       - cuidemjunts-network
-
-volumes:
-  postgres_data:
-    driver: local
 
 networks:
   cuidemjunts-network:
