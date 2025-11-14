@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cuidemjunts-nestjs
     restart: unless-stopped
     depends_on:
       - database
@@ -31,7 +30,6 @@ services:
   database:
     #postgre
     image: postgres:16-alpine
-    container_name: cuidemjunts-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_DB=${DB_DATABASE}
