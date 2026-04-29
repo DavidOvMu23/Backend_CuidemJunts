@@ -1,4 +1,8 @@
-node_modules
+nest_backend/node_modules
+nest_backend/dist
+postgres_data
+**/.DS_Store
+**/*.lognode_modules
 dist
 .git
 .gitignore
