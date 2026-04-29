@@ -1,0 +1,5 @@
+nest_backend/node_modules
+nest_backend/dist
+postgres_data
+**/.DS_Store
+**/*.log
